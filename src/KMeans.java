@@ -26,7 +26,7 @@ public class KMeans {
             Configuration conf = context.getConfiguration();
             Path cents = new Path(conf.get("centroid.path"));
             FileSystem fs = FileSystem.get(conf);
-            try(SequenceFile.Reader reader = new SequenceFile.Reader(fs,cents,conf)){
+            try(SequenceFile.Reader reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(cents))){
                 PointVector key = new PointVector();
                 while(reader.next(key)){
                     PointVector clusterCenter = new PointVector(key);
