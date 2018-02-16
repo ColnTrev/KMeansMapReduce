@@ -19,7 +19,6 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 
@@ -27,8 +26,8 @@ import java.util.List;
  * Created by colntrev on 2/13/18.
  */
 public class KMeans {
-    public static class KMeansMap extends Mapper<PointVector,PointVector,PointVector,PointVector>{
-        private final List<PointVector> centers = new ArrayList<>();
+    public static class KMeansMap extends Mapper<CenterVector,PointVector,CenterVector,PointVector>{
+        private final List<CenterVector> centers = new ArrayList<>();
 
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
@@ -37,20 +36,20 @@ public class KMeans {
             Path cents = new Path(conf.get("centroid.path"));
             FileSystem fs = FileSystem.get(conf);
             try(SequenceFile.Reader reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(cents))){
-                PointVector key = new PointVector();
+                CenterVector key = new CenterVector();
                 IntWritable value = new IntWritable();
                 while(reader.next(key,value)){
-                    PointVector clusterCenter = new PointVector(key);
+                    CenterVector clusterCenter = new CenterVector(key);
                     centers.add(clusterCenter);
                 }
             }
         }
 
         @Override
-        public void map(PointVector cluster, PointVector point, Context context) throws IOException, InterruptedException {
-            PointVector nearest = null;
+        public void map(CenterVector cluster, PointVector point, Context context) throws IOException, InterruptedException {
+            CenterVector nearest = null;
             double nearestDistance = Double.MAX_VALUE;
-            for(PointVector pv :centers){
+            for(CenterVector pv :centers){
                 double distance = 0.0;
                 if(nearest == null){
                     nearest = pv;
@@ -67,12 +66,26 @@ public class KMeans {
 
     }
 
-    public static class KMeansReduce extends Reducer<PointVector, PointVector, PointVector, PointVector> {
-        private final List<PointVector> centers = new ArrayList<>();
+    public static class KMeansReduce extends Reducer<CenterVector, PointVector, CenterVector, PointVector> {
+        private final List<CenterVector> centers = new ArrayList<>();
         @Override
-        protected void reduce(PointVector center, Iterable<PointVector> points, Context context) throws IOException,InterruptedException{
+        protected void reduce(CenterVector center, Iterable<PointVector> points, Context context) throws IOException,InterruptedException{
             List<PointVector> pointVectorList = new ArrayList<>();
+            CenterVector newCenter = null;
+            for(PointVector point : points){
+                pointVectorList.add(new PointVector(point));
+                if(newCenter == null){
+                    newCenter = new CenterVector(point);
+                } else {
+                    newCenter.add(point.getPointVector());
+                }
+            }
+            newCenter.mean(pointVectorList.size());
+            centers.add(new CenterVector(newCenter));
 
+            for(PointVector pv : pointVectorList){
+                context.write(newCenter, pv);
+            }
         }
 
         @SuppressWarnings("deprecation")
@@ -86,7 +99,7 @@ public class KMeans {
             try(SequenceFile.Writer out = SequenceFile.createWriter(fs, context.getConfiguration(),outPath,
                     PointVector.class, IntWritable.class)){
                 final IntWritable value = new IntWritable(0);
-                for(PointVector center : centers){
+                for(CenterVector center : centers){
                     out.append(center, value);
                 }
             }
