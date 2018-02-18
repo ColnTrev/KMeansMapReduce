@@ -14,7 +14,9 @@ public class PointVector implements WritableComparable<PointVector> {
         super();
         point = new double[]{0,0};
     }
-
+    public PointVector(double x, double y){
+        point = new double[]{x,y};
+    }
     public PointVector(PointVector pv){
         super();
         int size = pv.point.length;

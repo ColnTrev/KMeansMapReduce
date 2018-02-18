@@ -7,9 +7,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-/**
- * Created by colntrev on 2/13/18.
- */
 public class CenterVector implements WritableComparable<CenterVector> {
     private double[] point;
 
@@ -18,6 +15,10 @@ public class CenterVector implements WritableComparable<CenterVector> {
         point = new double[]{0,0};
     }
 
+    public CenterVector(double x, double y){
+        super();
+        point = new double[]{x,y};
+    }
     public CenterVector(CenterVector pv){
         super();
         int size = pv.point.length;
@@ -46,7 +47,9 @@ public class CenterVector implements WritableComparable<CenterVector> {
             point[i] = dataInput.readDouble();
         }
     }
-
+    public boolean converged(CenterVector c){
+        return false;
+    }
     public void add(double[] p){
         for(int i = 0; i < point.length; i++){
             point[i] += p[i];

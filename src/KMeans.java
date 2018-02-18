@@ -1,8 +1,10 @@
 /* KMEANS MapReduce
 This program performs KMeans clustering on a set of datapoints in parallel using the MapReduce paradigm.
+
 This implementation is a reflection of the high level implementation found in the O'Reilly Book "Data Algorithms:
 Recipes for Scaling Up with MapReduce and Spark"
-File I/O was done following the tutorial code by Thomas Jungblut from the blog post found at:
+
+File I/O was done following the KMeans Clustering tutorial code by Thomas Jungblut from the blog post found at:
 http://codingwiththomas.blogspot.com/2011/05/k-means-clustering-with-mapreduce.html
 
 This code is written for comparison purposes with the Multi-Agent Spatial Simulation library implementation of KMeans
@@ -14,99 +16,81 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-
-/**
- * Created by colntrev on 2/13/18.
- */
 public class KMeans {
-    public static class KMeansMap extends Mapper<CenterVector,PointVector,CenterVector,PointVector>{
-        private final List<CenterVector> centers = new ArrayList<>();
 
-        @Override
-        protected void setup(Context context) throws IOException, InterruptedException {
-            super.setup(context);
-            Configuration conf = context.getConfiguration();
-            Path cents = new Path(conf.get("centroid.path"));
-            FileSystem fs = FileSystem.get(conf);
-            try(SequenceFile.Reader reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(cents))){
-                CenterVector key = new CenterVector();
-                IntWritable value = new IntWritable();
-                while(reader.next(key,value)){
-                    CenterVector clusterCenter = new CenterVector(key);
-                    centers.add(clusterCenter);
-                }
-            }
-        }
+    @SuppressWarnings("deprecation")
+    public static void main(String[] args) throws IOException,InterruptedException,ClassNotFoundException{
+        Configuration conf = new Configuration();
+        Path in = new Path(args[0]);
+        Path out = new Path(args[1]);
+        Path centroids = new Path(args[2]);
+        conf.set("centroid.path", centroids.toString());
 
-        @Override
-        public void map(CenterVector cluster, PointVector point, Context context) throws IOException, InterruptedException {
-            CenterVector nearest = null;
-            double nearestDistance = Double.MAX_VALUE;
-            for(CenterVector pv :centers){
-                double distance = 0.0;
-                if(nearest == null){
-                    nearest = pv;
-                    nearestDistance = distance;
-                } else {
-                    if(nearestDistance > distance){
-                        nearest = pv;
-                        nearestDistance = distance;
-                    }
-                }
-            }
-            context.write(nearest, point);
-        }
+        Job job = Job.getInstance(conf);
+        job.setJobName("KMeans Clustering");
+        job.setJarByClass(KMeans.class);
+        job.setMapperClass(KMeansMap.class);
+        job.setReducerClass(KMeansReduce.class);
+
+        FileInputFormat.addInputPath(job, in);
+        FileSystem fs = FileSystem.get(conf);
+        checkFileExists(fs,out,in,centroids);
+
+        writeCenterFile(conf,centroids,fs);
+        writeVectorFile(conf,in,fs);
+
+        FileOutputFormat.setOutputPath(job,out);
+        job.setInputFormatClass(SequenceFileInputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
+        job.setOutputKeyClass(CenterVector.class);
+        job.setOutputValueClass(PointVector.class);
+        job.waitForCompletion(true); //controls recursion and prevents crashes
+
+        long counter = job.getCounters().findCounter(KMeansReduce.Counter.CONVERGENCE).getValue();
 
     }
 
-    public static class KMeansReduce extends Reducer<CenterVector, PointVector, CenterVector, PointVector> {
-        private final List<CenterVector> centers = new ArrayList<>();
-        @Override
-        protected void reduce(CenterVector center, Iterable<PointVector> points, Context context) throws IOException,InterruptedException{
-            List<PointVector> pointVectorList = new ArrayList<>();
-            CenterVector newCenter = null;
-            for(PointVector point : points){
-                pointVectorList.add(new PointVector(point));
-                if(newCenter == null){
-                    newCenter = new CenterVector(point);
-                } else {
-                    newCenter.add(point.getPointVector());
-                }
-            }
-            newCenter.mean(pointVectorList.size());
-            centers.add(new CenterVector(newCenter));
-
-            for(PointVector pv : pointVectorList){
-                context.write(newCenter, pv);
-            }
+    public static void checkFileExists(FileSystem fs, Path in, Path out, Path c) throws IOException {
+        if(fs.exists(in)){
+            fs.delete(in,true);
         }
 
-        @SuppressWarnings("deprecation")
-        @Override
-        public void cleanup(Context context) throws IOException,InterruptedException{
-            super.cleanup(context);
-            Configuration conf = context.getConfiguration();
-            Path outPath = new Path(conf.get("centroid.path"));
-            FileSystem fs = FileSystem.get(conf);
-            fs.delete(outPath, true);
-            try(SequenceFile.Writer out = SequenceFile.createWriter(fs, context.getConfiguration(),outPath,
-                    PointVector.class, IntWritable.class)){
-                final IntWritable value = new IntWritable(0);
-                for(CenterVector center : centers){
-                    out.append(center, value);
-                }
-            }
+        if(fs.exists(c)){
+            fs.delete(c, true);
+        }
 
+        if(fs.exists(out)){
+            fs.delete(out, true);
         }
     }
-    public static void main(String[] args){
 
+    @SuppressWarnings("deprecation")
+    public static void writeVectorFile(Configuration conf, Path in, FileSystem fs) throws IOException{
+        try(SequenceFile.Writer vectorFile = SequenceFile.createWriter(fs,conf,in,CenterVector.class,PointVector.class)){
+            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(3,4));
+            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(5,6));
+            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(1,8));
+            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(2,7));
+            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(4,4));
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    public static void writeCenterFile(Configuration conf, Path in, FileSystem fs) throws IOException {
+        try(SequenceFile.Writer centerFile = SequenceFile.createWriter(fs, conf, in,
+                CenterVector.class, IntWritable.class)){
+            final IntWritable value = new IntWritable(0);
+            centerFile.append(new CenterVector(1,1), value);
+            centerFile.append(new CenterVector(2,4), value);
+        }
     }
 }
