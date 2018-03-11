@@ -28,11 +28,13 @@ public class KMeans {
 
     @SuppressWarnings("deprecation")
     public static void main(String[] args) throws IOException,InterruptedException,ClassNotFoundException{
+        int iter = 1;
         Configuration conf = new Configuration();
         Path in = new Path(args[0]);
         Path out = new Path(args[1]);
         Path centroids = new Path(args[2]);
         conf.set("centroid.path", centroids.toString());
+        conf.set("cycles", iter + "");
 
         Job job = Job.getInstance(conf);
         job.setJobName("KMeans Clustering");
@@ -53,9 +55,42 @@ public class KMeans {
 
         job.setOutputKeyClass(CenterVector.class);
         job.setOutputValueClass(PointVector.class);
+
         job.waitForCompletion(true); //controls recursion and prevents crashes
 
         long counter = job.getCounters().findCounter(KMeansReduce.Counter.CONVERGENCE).getValue();
+        iter++;
+        while(counter > 0){
+            conf = new Configuration();
+
+            conf.set("centroid.path", centroids.toString());
+            conf.set("cycles", iter + "");
+
+            job = Job.getInstance(conf);
+            job.setJobName("KMeans Clustering " + iter);
+            job.setJarByClass(KMeans.class);
+            job.setMapperClass(KMeansMap.class);
+            job.setReducerClass(KMeansReduce.class);
+
+            in = new Path("clustering/intermediary_" + (iter - 1) + "/");
+            out = new Path("clustering/intermediary_" + iter + "/");
+
+            FileInputFormat.addInputPath(job, in);
+
+            checkFileExists(fs, out);
+
+            FileOutputFormat.setOutputPath(job,out);
+            job.setInputFormatClass(SequenceFileInputFormat.class);
+            job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
+            job.setOutputKeyClass(CenterVector.class);
+            job.setOutputValueClass(PointVector.class);
+
+            job.waitForCompletion(true);
+            iter++;
+            counter = job.getCounters().findCounter(KMeansReduce.Counter.CONVERGENCE).getValue();
+
+        }
 
     }
 
@@ -68,6 +103,12 @@ public class KMeans {
             fs.delete(c, true);
         }
 
+        if(fs.exists(out)){
+            fs.delete(out, true);
+        }
+    }
+
+    public static void checkFileExists(FileSystem fs, Path out) throws IOException {
         if(fs.exists(out)){
             fs.delete(out, true);
         }
