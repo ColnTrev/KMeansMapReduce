@@ -31,6 +31,9 @@ public class CenterVector implements WritableComparable<CenterVector> {
         point = new double[vec.length];
         add(vec);
     }
+    public double[] getCenterVector(){
+        return point;
+    }
     @Override
     public void write(DataOutput dataOutput) throws IOException {
         dataOutput.writeInt(point.length);
@@ -47,9 +50,20 @@ public class CenterVector implements WritableComparable<CenterVector> {
             point[i] = dataInput.readDouble();
         }
     }
+
     public boolean converged(CenterVector c){
-        return false;
+        return calculateError(c.getCenterVector()) > 0;
+
     }
+
+    public double calculateError(double[] center){
+        double sum = 0.0;
+        for(int i = 0; i < point.length; i++){
+            sum += Math.abs(center[i] - point[i]);
+        }
+        return Math.sqrt(sum);
+    }
+
     public void add(double[] p){
         for(int i = 0; i < point.length; i++){
             point[i] += p[i];

@@ -32,22 +32,34 @@ public class KMeansMap extends Mapper<CenterVector,PointVector,CenterVector,Poin
     }
 
     @Override
-    public void map(CenterVector cluster, PointVector point, Context context) throws IOException, InterruptedException {
+    protected void map(CenterVector cluster, PointVector point, Context context) throws IOException, InterruptedException {
         CenterVector nearest = null;
         double nearestDistance = Double.MAX_VALUE;
-        for(CenterVector pv :centers){
-            double distance = 0.0;
+        for(CenterVector c :centers){
+            double dist = distance(c.getCenterVector(), point.getPointVector());
             if(nearest == null){
-                nearest = pv;
-                nearestDistance = distance;
+                nearest = c;
+                nearestDistance = dist;
             } else {
-                if(distance < nearestDistance){
-                    nearest = pv;
-                    nearestDistance = distance;
+                if(dist < nearestDistance){
+                    nearest = c;
+                    nearestDistance = dist;
                 }
             }
         }
         context.write(nearest, point);
+    }
+
+    protected double distance(double[] center, double[] point){
+        if(center.length != point.length){
+            System.err.println("Error: dimensions not the same");
+            System.exit(-1);
+        }
+        double sum = 0.0;
+        for(int i = 0; i < center.length; i++){
+            sum += center[i] * point[i];
+        }
+        return Math.sqrt(sum);
     }
 
 }

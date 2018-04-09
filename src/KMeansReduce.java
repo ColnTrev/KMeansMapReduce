@@ -17,7 +17,7 @@ public class KMeansReduce extends Reducer<CenterVector, PointVector, CenterVecto
 
     // This Counter reduces the recursion created by the MapReduce paradigm and prevents crashes
     public static enum Counter {
-        CONVERGENCE
+        UPDATED
     }
 
     private final List<CenterVector> centers = new ArrayList<>();
@@ -42,7 +42,7 @@ public class KMeansReduce extends Reducer<CenterVector, PointVector, CenterVecto
             context.write(updated, pv);
         }
         if(updated.converged(centroid)){
-            context.getCounter(Counter.CONVERGENCE).increment(1);
+            context.getCounter(Counter.UPDATED).increment(1);
         }
     }
 

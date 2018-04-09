@@ -58,9 +58,9 @@ public class KMeans {
 
         job.waitForCompletion(true); //controls recursion and prevents crashes
 
-        long counter = job.getCounters().findCounter(KMeansReduce.Counter.CONVERGENCE).getValue();
+        long update = job.getCounters().findCounter(KMeansReduce.Counter.UPDATED).getValue();
         iter++;
-        while(counter > 0){
+        while(update > 0){ // we continue to loop until updated is 0 meaning our centers have converged and the algorithm terminates
             conf = new Configuration();
 
             conf.set("centroid.path", centroids.toString());
@@ -88,7 +88,7 @@ public class KMeans {
 
             job.waitForCompletion(true);
             iter++;
-            counter = job.getCounters().findCounter(KMeansReduce.Counter.CONVERGENCE).getValue();
+            update = job.getCounters().findCounter(KMeansReduce.Counter.UPDATED).getValue();
 
         }
 
