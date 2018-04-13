@@ -31,7 +31,7 @@ public class KMeans {
         int iter = 1;
         Configuration conf = new Configuration();
         Path in = new Path(args[0]);
-        Path out = new Path(args[1]);
+        Path out = new Path("/clustering/intermediary_1");
         Path centroids = new Path(args[2]);
         conf.set("centroid.path", centroids.toString());
         conf.set("cycles", iter + "");
@@ -55,7 +55,7 @@ public class KMeans {
 
         job.setOutputKeyClass(CenterVector.class);
         job.setOutputValueClass(PointVector.class);
-
+        long startTime = System.currentTimeMillis();
         job.waitForCompletion(true); //controls recursion and prevents crashes
 
         long update = job.getCounters().findCounter(KMeansReduce.Counter.UPDATED).getValue();
@@ -72,8 +72,8 @@ public class KMeans {
             job.setMapperClass(KMeansMap.class);
             job.setReducerClass(KMeansReduce.class);
 
-            in = new Path("clustering/intermediary_" + (iter - 1) + "/");
-            out = new Path("clustering/intermediary_" + iter + "/");
+            in = new Path("/clustering/intermediary_" + (iter - 1) + "/");
+            out = new Path("/clustering/intermediary_" + iter + "/");
 
             FileInputFormat.addInputPath(job, in);
 
@@ -91,7 +91,8 @@ public class KMeans {
             update = job.getCounters().findCounter(KMeansReduce.Counter.UPDATED).getValue();
 
         }
-
+         long endTime = System.currentTimeMillis();
+        System.out.println("Elapsed Time: " + (endTime - startTime));
     }
 
     public static void checkFileExists(FileSystem fs, Path in, Path out, Path c) throws IOException {

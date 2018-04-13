@@ -55,7 +55,7 @@ public class KMeansReduce extends Reducer<CenterVector, PointVector, CenterVecto
         FileSystem fs = FileSystem.get(conf);
         fs.delete(outPath, true);
         try(SequenceFile.Writer out = SequenceFile.createWriter(fs, context.getConfiguration(),outPath,
-                PointVector.class, IntWritable.class)){
+                CenterVector.class, IntWritable.class)){
             final IntWritable value = new IntWritable(0);
             for(CenterVector center : centers){
                 out.append(center, value);
