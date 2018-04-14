@@ -23,12 +23,17 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import java.io.IOException;
+import java.util.Random;
 
 public class KMeans {
 
     @SuppressWarnings("deprecation")
     public static void main(String[] args) throws IOException,InterruptedException,ClassNotFoundException{
         int iter = 1;
+        int maxPoints = 100;
+        int maxX = 30;
+        int maxY = 30;
+        int k = 3;
         Configuration conf = new Configuration();
         Path in = new Path(args[0]);
         Path out = new Path("/clustering/intermediary_1");
@@ -46,8 +51,8 @@ public class KMeans {
         FileSystem fs = FileSystem.get(conf);
         checkFileExists(fs,out,in,centroids);
 
-        writeCenterFile(conf,centroids,fs);
-        writeVectorFile(conf,in,fs);
+        writeCenterFile(conf,centroids,fs, maxX, maxY, k);
+        writeVectorFile(conf,in,fs, maxPoints, maxX, maxY);
 
         FileOutputFormat.setOutputPath(job,out);
         job.setInputFormatClass(SequenceFileInputFormat.class);
@@ -116,23 +121,28 @@ public class KMeans {
     }
 
     @SuppressWarnings("deprecation")
-    public static void writeVectorFile(Configuration conf, Path in, FileSystem fs) throws IOException{
+    public static void writeVectorFile(Configuration conf, Path in, FileSystem fs, int maxPoints, int maxX, int maxY) throws IOException{
+        Random rand = new Random();
         try(SequenceFile.Writer vectorFile = SequenceFile.createWriter(fs,conf,in,CenterVector.class,PointVector.class)){
-            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(3,4));
-            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(5,6));
-            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(1,8));
-            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(2,7));
-            vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(4,4));
+            for(int i = 0; i < maxPoints; i++){
+                int x = rand.nextInt(maxX);
+                int y = rand.nextInt(maxY);
+                vectorFile.append(new CenterVector(new PointVector(0,0)), new PointVector(x,y));
+            }
         }
     }
 
     @SuppressWarnings("deprecation")
-    public static void writeCenterFile(Configuration conf, Path in, FileSystem fs) throws IOException {
+    public static void writeCenterFile(Configuration conf, Path in, FileSystem fs, int maxX, int maxY, int k) throws IOException {
+        Random rand = new Random();
         try(SequenceFile.Writer centerFile = SequenceFile.createWriter(fs, conf, in,
                 CenterVector.class, IntWritable.class)){
             final IntWritable value = new IntWritable(0);
-            centerFile.append(new CenterVector(1,1), value);
-            centerFile.append(new CenterVector(2,4), value);
+            for(int i = 0; i < k; i++){
+                int x = rand.nextInt(maxX);
+                int y = rand.nextInt(maxY);
+                centerFile.append(new CenterVector(x,y), value);
+            }
         }
     }
 }
