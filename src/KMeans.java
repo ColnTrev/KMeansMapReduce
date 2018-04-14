@@ -35,9 +35,9 @@ public class KMeans {
         int maxY = 30;
         int k = 3;
         Configuration conf = new Configuration();
-        Path in = new Path(args[0]);
-        Path out = new Path("/clustering/intermediary_1");
-        Path centroids = new Path(args[2]);
+        Path in = new Path("files/clustering/import/data");
+        Path out = new Path("files/clustering/depth_1");
+        Path centroids = new Path("files/clustering/import/center/cen.seq");
         conf.set("centroid.path", centroids.toString());
         conf.set("cycles", iter + "");
 
@@ -77,8 +77,8 @@ public class KMeans {
             job.setMapperClass(KMeansMap.class);
             job.setReducerClass(KMeansReduce.class);
 
-            in = new Path("/clustering/intermediary_" + (iter - 1) + "/");
-            out = new Path("/clustering/intermediary_" + iter + "/");
+            in = new Path("files/clustering/depth_" + (iter - 1) + "/");
+            out = new Path("files/clustering/depth_" + iter + "/");
 
             FileInputFormat.addInputPath(job, in);
 
